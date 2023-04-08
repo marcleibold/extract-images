@@ -93,9 +93,7 @@ def get_duplicates(image_files: list(str)) -> set(str):
     return duplicates
 
 
-def flatten_and_save(image_files: list(str), prefix: str = 'out', suffix: str = '.jpg') -> None:
-    # flatten images, rename and save them to the output directory
-    max_number_length = len(str(len(image_files)))
+def _flatten_and_save(image_files: list(str), prefix: str, suffix: str, max_number_length: str, thread: int) -> None:
     for i, image_file in tqdm(enumerate(image_files), desc='Flattening and renaming images', total=len(image_files)):
         image = Image.open(image_file).convert('RGB')
         date_taken = get_date_taken(image)
@@ -103,8 +101,21 @@ def flatten_and_save(image_files: list(str), prefix: str = 'out', suffix: str = 
         if date_taken:
             filename = date_taken.replace(':', '-').replace(' ', '-') + suffix
         else:
-            filename = str(i).zfill(max_number_length) + suffix
+            filename = str(thread) + str(i).zfill(max_number_length) + suffix
         image.save(os.path.join(prefix, filename))
+
+
+def flatten_and_save(image_files: list(str), prefix: str = 'out', suffix: str = '.jpg') -> None:
+    # flatten images, rename and save them to the output directory
+    max_number_length = len(str(len(image_files)))
+    workers = cpu_count() - 1  # so you can use your computer while it's running
+    image_files_split = array_split(image_files, workers)
+    with Pool(workers) as p:
+        p.starmap(
+            _flatten_and_save,
+            zip(image_files_split, [prefix] * workers, [suffix] * workers,
+                [max_number_length] * workers, thread=range(workers))
+        )
 
 
 def main():
