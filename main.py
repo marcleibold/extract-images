@@ -1,6 +1,7 @@
 import os
 import argparse
 from tqdm import tqdm
+import logging
 
 from functools import partial
 from PIL import Image, ImageChops
@@ -8,6 +9,8 @@ from multiprocessing import Pool, cpu_count
 from numpy import array_split
 
 from settings import IMAGE_FILETYPES
+
+logging.basicConfig(filename='log.txt', level=logging.DEBUG)
 
 
 def find_image_files(directory: str) -> list(str):
@@ -24,7 +27,7 @@ def get_date_taken(image: Image) -> str:
     try:
         return image._getexif()[36867]
     except Exception as e:
-        print(f"Could not get date taken: {e}")
+        logging.info(f"Could not get date taken: {e}")
         return ""
 
 
@@ -35,7 +38,7 @@ def image_content_equal(image_file1: str, image_file2: str) -> bool:
             if diff.getbbox() is None:
                 return True
     except Exception as e:
-        print(f"Could not read image: {e}")
+        logging.error(f"Could not read image: {e}")
     return False
 
 
