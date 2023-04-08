@@ -13,7 +13,7 @@ from settings import IMAGE_FILETYPES
 logging.basicConfig(filename='log.txt', level=logging.DEBUG)
 
 
-def find_image_files(directory: str) -> list(str):
+def find_image_files(directory: str) -> list[str]:
     # recursively find all images in directory
     image_files = []
     for root, _, files in tqdm(os.walk(directory), desc='Finding images'):
@@ -46,7 +46,7 @@ def image_name_equal(image_file1: str, image_file2: str) -> bool:
     return image_file1.split('/')[-1] == image_file2.split('/')[-1]
 
 
-def _map_duplicates(image_files_chunk: list(str), image_files: list(str)) -> dict(str, list(str)):
+def _map_duplicates(image_files_chunk: list[str], image_files: list[str]) -> dict[str, list[str]]:
     duplicates = {}
     for image_file1 in image_files_chunk:
         for image_file2 in image_files:
@@ -60,7 +60,7 @@ def _map_duplicates(image_files_chunk: list(str), image_files: list(str)) -> dic
     return duplicates
 
 
-def get_duplicates(image_files: list(str)) -> set(str):
+def get_duplicates(image_files: list[str]) -> set[str]:
     workers = cpu_count() - 1  # so you can use your computer while it's running
     image_files_split = array_split(image_files, workers)
 
@@ -93,7 +93,7 @@ def get_duplicates(image_files: list(str)) -> set(str):
     return duplicates
 
 
-def _flatten_and_save(image_files: list(str), prefix: str, suffix: str, max_number_length: str, thread: int) -> None:
+def _flatten_and_save(image_files: list[str], prefix: str, suffix: str, max_number_length: str, thread: int) -> None:
     for i, image_file in tqdm(enumerate(image_files), desc='Flattening and renaming images', total=len(image_files)):
         image = Image.open(image_file).convert('RGB')
         date_taken = get_date_taken(image)
@@ -105,7 +105,7 @@ def _flatten_and_save(image_files: list(str), prefix: str, suffix: str, max_numb
         image.save(os.path.join(prefix, filename))
 
 
-def flatten_and_save(image_files: list(str), prefix: str = 'out', suffix: str = '.jpg') -> None:
+def flatten_and_save(image_files: list[str], prefix: str = 'out', suffix: str = '.jpg') -> None:
     # flatten images, rename and save them to the output directory
     max_number_length = len(str(len(image_files)))
     workers = cpu_count() - 1  # so you can use your computer while it's running
