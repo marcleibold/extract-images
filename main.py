@@ -10,7 +10,7 @@ from numpy import array_split
 
 from settings import IMAGE_FILETYPES
 
-logging.basicConfig(filename='log.txt', level=logging.DEBUG)
+logging.basicConfig(filename='log.txt', filemode='w', level=logging.DEBUG)
 
 
 def find_image_files(directory: str) -> list[str]:
@@ -31,6 +31,18 @@ def get_date_taken(image: Image) -> str:
         return ""
 
 
+def _hash_image_files(image_files: list[str]) -> dict[str, str]:
+    hashed = {}
+    for image_file in image_files:
+        try:
+            with Image.open(image_file) as img:
+                hashed[image_file] = hash(img.tobytes())
+        except Exception as e:
+            logging.error(f"Could not read image: {e}")
+            hashed[image_file] = ""
+    return hashed
+
+
 def image_content_equal(image_file1: str, image_file2: str) -> bool:
     try:
         with Image.open(image_file1).convert('RGB') as image1, Image.open(image_file2).convert('RGB') as image2:
@@ -42,18 +54,19 @@ def image_content_equal(image_file1: str, image_file2: str) -> bool:
     return False
 
 
-def image_name_equal(image_file1: str, image_file2: str) -> bool:
-    return image_file1.split('/')[-1] == image_file2.split('/')[-1]
-
-
-def _map_duplicates(image_files_chunk: list[str], image_files: list[str]) -> dict[str, list[str]]:
+def _map_duplicates(image_files_chunk: list[str], hashed_image_files: dict[str, str]) -> dict[str, list[str]]:
     duplicates = {}
     for image_file1 in image_files_chunk:
-        for image_file2 in image_files:
+        for image_file2 in hashed_image_files.keys():
             if image_file1 == image_file2:
                 continue
-            if image_name_equal(image_file1, image_file2):
+            if not hashed_image_files[image_file1] or not hashed_image_files[image_file2]:
                 if image_content_equal(image_file1, image_file2):
+                    if image_file1 not in duplicates:
+                        duplicates[image_file1] = []
+                    duplicates[image_file1].append(image_file2)
+            else:
+                if hashed_image_files[image_file1] == hashed_image_files[image_file2]:
                     if image_file1 not in duplicates:
                         duplicates[image_file1] = []
                     duplicates[image_file1].append(image_file2)
@@ -65,9 +78,19 @@ def get_duplicates(image_files: list[str]) -> set[str]:
     image_files_split = array_split(image_files, workers)
 
     with Pool(workers) as p:
+        hashed_image_files_list = list(tqdm(
+            p.imap(_hash_image_files, image_files_split),
+            desc='Hashing images', total=workers
+        ))
+
+    hashed_image_files = {}
+    for hashed_image_files_ in hashed_image_files_list:
+        hashed_image_files.update(hashed_image_files_)
+
+    with Pool(workers) as p:
         duplicates_dict_list = list(tqdm(
             p.imap(
-                partial(_map_duplicates, image_files=image_files),
+                partial(_map_duplicates, hashed_image_files=hashed_image_files),
                 image_files_split
             ),
             desc='Comparing images', total=workers
@@ -99,13 +122,13 @@ def _flatten_and_save(image_files: list[str], prefix: str, suffix: str, max_numb
         date_taken = get_date_taken(image)
         i = 0
         if date_taken:
-            filename = date_taken.replace(':', '-').replace(' ', '-') + suffix
+            filename = date_taken.replace(':', '-').replace(' ', '-')
         else:
-            filename = str(thread) + str(i).zfill(max_number_length) + suffix
-        image.save(os.path.join(prefix, filename))
+            filename = str(thread) + str(i).zfill(max_number_length)
+        image.save(os.path.join(prefix, filename), format=suffix)
 
 
-def flatten_and_save(image_files: list[str], prefix: str = 'out', suffix: str = '.jpg') -> None:
+def flatten_and_save(image_files: list[str], prefix: str = 'out', suffix: str = 'jpg') -> None:
     # flatten images, rename and save them to the output directory
     max_number_length = len(str(len(image_files)))
     workers = cpu_count() - 1  # so you can use your computer while it's running
@@ -114,7 +137,7 @@ def flatten_and_save(image_files: list[str], prefix: str = 'out', suffix: str = 
         p.starmap(
             _flatten_and_save,
             zip(image_files_split, [prefix] * workers, [suffix] * workers,
-                [max_number_length] * workers, thread=range(workers))
+                [max_number_length] * workers, range(workers))
         )
 
 
