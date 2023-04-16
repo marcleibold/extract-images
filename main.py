@@ -4,11 +4,13 @@ from tqdm import tqdm
 import logging
 
 from functools import partial
-from PIL import Image, ImageChops
+from PIL import Image, ImageChops, ImageFile
 from multiprocessing import Pool, cpu_count
 from numpy import array_split
 
 from settings import IMAGE_FILETYPES
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 logging.basicConfig(filename='log.txt', filemode='w', level=logging.INFO)
 
