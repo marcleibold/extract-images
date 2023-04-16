@@ -10,7 +10,7 @@ from numpy import array_split
 
 from settings import IMAGE_FILETYPES
 
-logging.basicConfig(filename='log.txt', filemode='w', level=logging.DEBUG)
+logging.basicConfig(filename='log.txt', filemode='w', level=logging.INFO)
 
 
 def find_image_files(directory: str) -> list[str]:
@@ -35,7 +35,7 @@ def _hash_image_files(image_files: list[str]) -> dict[str, str]:
     hashed = {}
     for image_file in image_files:
         try:
-            with Image.open(image_file) as img:
+            with Image.open(image_file).convert('RGB') as img:
                 hashed[image_file] = hash(img.tobytes())
         except Exception as e:
             logging.error(f"Could not read image: {e}")
